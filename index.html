@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schedule T Premises Layout Planner – ASU Manufacturing</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --accent: #0d6e4f;
+    --accent-light: #e6f4ef;
+    --warn: #c0392b;
+    --ok: #27ae60;
+    --border: #d0d7de;
+    --text: #1f2933;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 16px;
+    line-height: 1.45;
+  }
+  h1 { font-size: 1.4rem; color: var(--accent); margin: 0 0 8px; }
+  h2 { font-size: 1.15rem; margin: 20px 0 10px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  label { display: block; font-weight: 600; margin: 10px 0 4px; font-size: 0.92rem; }
+  input[type="number"], select {
+    width: 100%;
+    max-width: 280px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 1rem;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+  .check-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.92rem;
+    padding: 6px;
+    border-radius: 6px;
+  }
+  .check-item:hover { background: var(--accent-light); }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+  button:hover { opacity: 0.92; }
+  button.secondary { background: #4b5563; }
+  .status-ok { color: var(--ok); font-weight: 700; }
+  .status-warn { color: var(--warn); font-weight: 700; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin-top: 8px;
+  }
+  th, td { border: 1px solid var(--border); padding: 8px; text-align: left; }
+  th { background: var(--accent-light); }
+  .layout-wrap {
+    overflow-x: auto;
+    margin-top: 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+  }
+  svg { max-width: 100%; height: auto; }
+  .note { font-size: 0.85rem; color: #4b5563; margin-top: 8px; }
+  .footer-note {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  @media print {
+    button, .no-print { display: none !important; }
+    body { background: white; padding: 0; }
+    .card { box-shadow: none; border: 1px solid #ccc; }
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Schedule T Premises Layout Planner</h1>
+  <p>Rough blueprint generator for Ayurvedic / Unani manufacturing premises as per Drugs & Cosmetics Rules, 1945 – Schedule T (GMP).</p>
+  <p class="note"><strong>Disclaimer:</strong> This is a consultant planning aid only. Minimum areas are taken from commonly published Schedule T Part II lists. Actual layout, sharing of areas, and approval are subject to State Licensing Authority interpretation and site inspection. Do not use as sole basis for licence application.</p>
+</div>
+
+<div class="card no-print">
+  <h2>1. Premises Size</h2>
+  <div class="row">
+    <div>
+      <label for="length">Length (ft)</label>
+      <input type="number" id="length" min="20" value="50" step="1">
+    </div>
+    <div>
+      <label for="width">Breadth / Width (ft)</label>
+      <input type="number" id="width" min="20" value="40" step="1">
+    </div>
+    <div>
+      <label for="system">System</label>
+      <select id="system">
+        <option value="ayu">Ayurvedic only</option>
+        <option value="unani">Unani only</option>
+        <option value="both">Ayurvedic + Unani (adds 400 sq ft)</option>
+      </select>
+    </div>
+  </div>
+  <p id="totalAreaDisplay" style="margin-top:10px; font-weight:600;"></p>
+</div>
+
+<div class="card no-print">
+  <h2>2. Product Categories (select all that apply)</h2>
+  <p class="note">Areas are minimum manufacturing space per Schedule T Part II. Common supporting areas are added automatically.</p>
+  <div class="check-grid" id="categories"></div>
+  <button onclick="generateLayout()">Generate Rough Blueprint</button>
+  <button class="secondary" onclick="window.print()">Print / Save as PDF</button>
+</div>
+
+<div id="results"></div>
+
+<script>
+const categories = [
+  { id: "churna", name: "Churna / Sufoof / Nasya / Manjan / Lepa / Kwath Churna (Powder)", area: 200, systems: ["ayu","unani","both"], heat: false, capsule: false },
+  { id: "vati", name: "Pills / Vati / Gutika / Habb / Qurs / Tablets", area: 100, systems: ["ayu","unani","both"], heat: false, capsule: false },
+  { id: "capsule", name: "Capsules (requires AC + dehumidifier)", area: 100, systems: ["ayu","unani","both"], heat: false, capsule: true },
+  { id: "syrup", name: "Syrup / Sharbat / Panak / Pravahi Kwath / Joshanda", area: 150, systems: ["ayu","unani","both"], heat: true, capsule: false },
+  { id: "arq", name: "Arq / Ark / Distillate", area: 100, systems: ["ayu","unani","both"], heat: true, capsule: false },
+  { id: "avaleha", name: "Avaleha / Pak / Majoon / Jawarish / Khamira / Itrifal / Laooq / Murabba", area: 100, systems: ["ayu","unani","both"], heat: true, capsule: false },
+  { id: "taila", name: "Taila / Ghrita / Raughan (Oils)", area: 100, systems: ["ayu","unani","both"], heat: true, capsule: false },
+  { id: "marham", name: "Marham / Ointment / Zimad / Paste / Lepa", area: 100, systems: ["ayu","unani","both"], heat: false, capsule: false },
+  { id: "asava", name: "Asava / Arishta", area: 200, systems: ["ayu","both"], heat: false, capsule: false },
+  { id: "bhasma", name: "Bhasma / Kushta / Rasaushadhi / Kupipakva / Parpati etc. (segregated)", area: 150, systems: ["ayu","unani","both"], heat: true, capsule: false, special: true },
+  { id: "kajal", name: "Kajal / Surma / Anjana / Shiyaf", area: 100, systems: ["ayu","unani","both"], heat: false, capsule: false },
+  { id: "eye", name: "Eye / Ear / Nasal preparations (higher control)", area: 100, systems: ["ayu","both"], heat: false, capsule: false, special: true }
+];
+
+const commonAreas = [
+  { name: "Raw Material Store (quarantine + approved)", area: 100 },
+  { name: "Packing Material Store", area: 100 },
+  { name: "Finished Goods Store (quarantine + approved)", area: 100 },
+  { name: "Packing & Labelling Room", area: 100 },
+  { name: "Quality Control Laboratory", area: 150 },
+  { name: "Rejected / Recall Store", area: 50 },
+  { name: "Office / Documentation", area: 80 },
+  { name: "Change Room / Worker Facilities (approx)", area: 80 }
+];
+
+function init() {
+  const container = document.getElementById("categories");
+  categories.forEach(cat => {
+    const div = document.createElement("div");
+    div.className = "check-item";
+    div.innerHTML = `<input type="checkbox" id="${cat.id}" value="${cat.id}" checked> <label for="${cat.id}" style="font-weight:normal; margin:0;">${cat.name} <strong>(${cat.area} sq ft)</strong></label>`;
+    container.appendChild(div);
+  });
+  updateAreaDisplay();
+  document.getElementById("length").addEventListener("input", updateAreaDisplay);
+  document.getElementById("width").addEventListener("input", updateAreaDisplay);
+}
+
+function updateAreaDisplay() {
+  const l = parseFloat(document.getElementById("length").value) || 0;
+  const w = parseFloat(document.getElementById("width").value) || 0;
+  const total = l * w;
+  document.getElementById("totalAreaDisplay").textContent = `Provided covered area: ${total.toLocaleString()} sq ft`;
+}
+
+function generateLayout() {
+  const length = parseFloat(document.getElementById("length").value) || 0;
+  const width = parseFloat(document.getElementById("width").value) || 0;
+  const provided = length * width;
+  const system = document.getElementById("system").value;
+
+  let selected = categories.filter(cat => document.getElementById(cat.id).checked);
+  if (system === "ayu") selected = selected.filter(c => c.systems.includes("ayu") || c.systems.includes("both"));
+  if (system === "unani") selected = selected.filter(c => c.systems.includes("unani") || c.systems.includes("both"));
+
+  let mfgAreas = selected.map(s => ({ name: s.name.split("(")[0].trim(), area: s.area, type: "mfg", special: s.special }));
+  let base = 1200;
+  if (system === "both") base += 400;
+
+  let needsFurnace = selected.some(s => s.heat || s.special);
+  let needsCapsuleNote = selected.some(s => s.capsule);
+
+  let supporting = [...commonAreas];
+  if (needsFurnace) {
+    supporting.push({ name: "Bhatti / Furnace / Boiler / Puta (ventilated, exhaust)", area: 200 });
+  }
+  if (selected.length > 2) {
+    supporting = supporting.map(s => s.name.includes("Packing & Labelling") ? { ...s, area: 150 } : s);
+  }
+
+  const allRooms = [...mfgAreas, ...supporting];
+  const totalRequired = allRooms.reduce((sum, r) => sum + r.area, 0);
+  const effectiveRequired = Math.max(base, totalRequired);
+
+  let statusClass = provided >= effectiveRequired ? "status-ok" : "status-warn";
+  let statusText = provided >= effectiveRequired 
+    ? `GO – Provided area (${provided.toLocaleString()} sq ft) meets or exceeds rough minimum (${effectiveRequired.toLocaleString()} sq ft).`
+    : `NO-GO / Review – Provided area (${provided.toLocaleString()} sq ft) is less than rough minimum (${effectiveRequired.toLocaleString()} sq ft). Increase premises or reduce categories.`;
+
+  let html = `<div class="card">
+    <h2>3. Area Summary & Go/No-Go</h2>
+    <p class="${statusClass}">${statusText}</p>
+    <p>Base Schedule T covered area: <strong>${base.toLocaleString()} sq ft</strong> (${system === "both" ? "includes +400 for dual system" : "single system"})</p>
+    <p>Sum of selected manufacturing + supporting areas: <strong>${totalRequired.toLocaleString()} sq ft</strong></p>
+    <table>
+      <thead><tr><th>Section</th><th>Min Area (sq ft)</th><th>Notes</th></tr></thead>
+      <tbody>
+        ${allRooms.map(r => `<tr><td>${r.name}</td><td>${r.area}</td><td>${r.special ? "Segregated area required; supplementary GMP for rasa/kushta" : (r.type === "mfg" ? "Manufacturing section – separate cabin/partition" : "Supporting")}</td></tr>`).join("")}
+      </tbody>
+    </table>
+    ${needsCapsuleNote ? `<p class="note"><strong>Capsule note:</strong> Capsule filling room requires air-conditioning and dehumidifier; ceiling height ~8 ft acceptable with controls.</p>` : ""}
+    ${needsFurnace ? `<p class="note"><strong>Furnace note:</strong> Bhatti section must have proper ventilation, smoke/exhaust, fly-proofing. Can have tin roof.</p>` : ""}
+  </div>`;
+
+  html += generateSVG(length, width, allRooms, provided);
+
+  html += `<div class="card">
+    <h2>5. Schedule T Key Plant Controls (Checklist)</h2>
+    <ul>
+      <li>Location free from open sewerage, drains, public lavatories, and factories producing odour/fumes/dust/smoke.</li>
+      <li>Buildings: smooth, cleanable floors & walls; adequate light & ventilation; pest-proof; no dampness.</li>
+      <li>Separate areas for receiving/storage of RM, manufacturing (dosage-form wise), packing, FG store, QC, rejected goods.</li>
+      <li>Material and man flow to minimise cross-contamination and mix-up.</li>
+      <li>Water: potable quality; adequate for washing.</li>
+      <li>Waste disposal from manufacturing and labs.</li>
+      <li>Container washing/drying separated from manufacturing.</li>
+      <li>RM store: status labels (Under Test / Approved / Rejected), FIFO, category segregation (metallic, mineral, herbal, etc.).</li>
+      <li>FG store: quarantine then approved.</li>
+      <li>QC: minimum ~150 sq ft; identity, purity, strength, contaminants (microbial, aflatoxin, heavy metals, pesticides as applicable).</li>
+      <li>For Bhasma / Kushta / Rasaushadhi: segregated processing; proper shodhana–marana documentation; expert inspection; Schedule TA considerations where relevant.</li>
+      <li>BMR/BPR, distribution records, complaint records mandatory.</li>
+      <li>Height: manufacturing rooms preferably ≥10 ft; others ≥8 ft.</li>
+    </ul>
+    <p class="note">This layout is a rough proportional allocation for discussion with the client and for preparing a site plan for licensing authority review. Final design must be validated by competent technical person and approved by the State Licensing Authority.</p>
+  </div>`;
+
+  document.getElementById("results").innerHTML = html;
+}
+
+function generateSVG(length, width, rooms, provided) {
+  if (length <= 0 || width <= 0) return "<p>Invalid dimensions.</p>";
+
+  const scale = Math.min(700 / length, 500 / width);
+  const svgW = length * scale;
+  const svgH = width * scale;
+
+  let totalArea = rooms.reduce((s, r) => s + r.area, 0);
+  let currentX = 0;
+  let rects = "";
+  const colors = ["#d1fae5","#bfdbfe","#fde68a","#fecaca","#e9d5ff","#fed7aa","#a7f3d0","#bae6fd","#fbcfe8","#fef08a"];
+
+  rooms.forEach((room, i) => {
+    const frac = room.area / totalArea;
+    const roomLength = length * frac;
+    const roomW = svgW * (roomLength / length);
+    const roomH = svgH;
+    const x = currentX;
+    rects += `<rect x="${x}" y="0" width="${roomW}" height="${roomH}" fill="${colors[i % colors.length]}" stroke="#374151" stroke-width="1"/>`;
+    const labelX = x + roomW / 2;
+    const labelY = roomH / 2;
+    const shortName = room.name.length > 25 ? room.name.substring(0, 22) + "…" : room.name;
+    rects += `<text x="${labelX}" y="${labelY}" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#1f2933" font-weight="600">${shortName}</text>`;
+    rects += `<text x="${labelX}" y="${labelY + 14}" text-anchor="middle" font-size="9" fill="#4b5563">${room.area} sq ft</text>`;
+    currentX += roomW;
+  });
+
+  return `<div class="card">
+    <h2>4. Rough Blueprint (Strip Allocation)</h2>
+    <p class="note">Illustrative only – rooms allocated proportionally along the length. Real layout must respect material flow, man movement, segregation, and local authority requirements. Not to scale for construction.</p>
+    <div class="layout-wrap">
+      <svg width="${svgW}" height="${svgH + 30}" viewBox="0 0 ${svgW} ${svgH + 30}">
+        <rect x="0" y="0" width="${svgW}" height="${svgH}" fill="none" stroke="#111" stroke-width="2"/>
+        ${rects}
+        <text x="${svgW/2}" y="${svgH + 20}" text-anchor="middle" font-size="12" font-weight="600">${length} ft × ${width} ft = ${provided.toLocaleString()} sq ft</text>
+      </svg>
+    </div>
+    <p class="note">For a more precise layout, export this and mark doors, material flow arrows, and utilities on the drawing before submission to the licensing authority.</p>
+  </div>`;
+}
+
+init();
+</script>
+</body>
+</html>
